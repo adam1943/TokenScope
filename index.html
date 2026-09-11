@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="TokenScope 大模型 API 兼容性、协议支持与原厂参数透传测试工作台">
+  <title>TokenScope - 大模型 API 测试工作台</title>
+  <link rel="icon" type="image/svg+xml" href="assets/logo-v4.svg">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+  <script src="data.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <button class="brand" data-route="dashboard" aria-label="返回总览">
+        <span class="brand-mark" aria-hidden="true">
+          <img src="assets/logo-v4.svg" alt="">
+        </span>
+        <span class="brand-copy">
+          <strong>TokenScope</strong>
+          <small>中转站验真与性能测试工具</small>
+        </span>
+      </button>
+      <nav class="main-nav" aria-label="主导航">
+        <button class="nav-item is-active" data-route="dashboard"><i data-lucide="layout-dashboard"></i><span>总览</span></button>
+        <button class="nav-item" data-route="providers"><i data-lucide="database"></i><span>Provider 配置</span></button>
+        <button class="nav-item" data-route="matrix"><i data-lucide="table-properties"></i><span>模型能力矩阵</span></button>
+        <button class="nav-item" data-route="probe"><i data-lucide="activity"></i><span>Token Probe</span></button>
+        <button class="nav-item" data-route="suites"><i data-lucide="file-check-2"></i><span>测试套件</span></button>
+        <button class="nav-item" data-route="protocols"><i data-lucide="waypoints"></i><span>协议测试</span></button>
+        <button class="nav-item" data-route="compare"><i data-lucide="scale"></i><span>A/B Compare</span></button>
+        <button class="nav-item" data-route="customers"><i data-lucide="messages-square"></i><span>客户问询</span></button>
+        <button class="nav-item" data-route="reports"><i data-lucide="chart-no-axes-combined"></i><span>报告中心</span></button>
+        <button class="nav-item" data-route="docs"><i data-lucide="book-open"></i><span>文档说明</span></button>
+      </nav>
+      <div class="sidebar-foot">
+        <div class="environment">
+          <span class="status-dot"></span>
+          <div><strong>测试环境</strong><small>所有服务正常</small></div>
+        </div>
+        <button class="nav-item" data-action="open-settings"><i data-lucide="settings"></i><span>系统配置</span></button>
+      </div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-button mobile-menu" data-action="toggle-sidebar" title="打开导航"><i data-lucide="menu"></i></button>
+          <div class="breadcrumb" id="breadcrumb"></div>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-button" data-action="open-search" title="搜索"><i data-lucide="search"></i></button>
+          <button class="icon-button notification-button" data-action="show-notifications" title="通知"><i data-lucide="bell"></i><span class="notification-dot"></span></button>
+          <button class="profile-button" data-action="profile-menu"><span class="avatar">U</span><span>用户</span><i data-lucide="chevron-down"></i></button>
+        </div>
+      </header>
+      <main class="page" id="app-content" tabindex="-1"></main>
+    </div>
+  </div>
+  <div class="mobile-backdrop" data-action="toggle-sidebar"></div>
+  <div class="modal-layer" id="modal-layer"></div>
+  <div class="toast-region" id="toast-region" aria-live="polite"></div>
+</body>
+</html>
