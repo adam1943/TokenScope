@@ -1,14 +1,14 @@
 window.TokenScopeData = (() => {
   const providers = [
-    { id:'openai', brand:'openai', name:'OpenAI', type:'OpenAI 兼容 / Responses', endpoint:'https://api.openai.com/v1', models:3, status:'正常', key:'sk-proj-••••••••••••••••', checked:'今天 09:40' },
-    { id:'anthropic', brand:'anthropic', name:'Anthropic', type:'Messages 原厂', endpoint:'https://api.anthropic.com/v1', models:2, status:'正常', key:'sk-ant-••••••••••••', checked:'今天 09:41' },
-    { id:'google', brand:'google', name:'Google Gemini', type:'generateContent 原厂', endpoint:'https://generativelanguage.googleapis.com/v1beta', models:2, status:'正常', key:'AIza••••••••••••', checked:'今天 09:42' },
-    { id:'qianfan', brand:'baidu', name:'百度千帆', type:'OpenAI 兼容 + 视频任务', endpoint:'https://qianfan.baidubce.com/v2', models:3, status:'需检查', key:'bce-v3/••••••••••••', checked:'今天 10:18' },
-    { id:'vod-bj', brand:'baidu', name:'百度智能云 VOD 北京', type:'OpenAI 兼容 / 多模态', endpoint:'https://vod.bj.baidubce.com', models:1, status:'正常', key:'bce-v3/••••••••••••', checked:'今天 09:55' },
-    { id:'vod-hk', brand:'baidu', name:'VOD 国际站香港', type:'Gemini Native', endpoint:'https://vod2.hkg.baidubce.com', models:1, status:'正常', key:'••••••••', checked:'昨天 18:12' },
-    { id:'vod-us', brand:'baidu', name:'VOD 美国站', type:'Gemini Native', endpoint:'https://overseas.exp.bcevod.com', models:1, status:'正常', key:'••••••••', checked:'昨天 18:14' },
-    { id:'vod-de', brand:'baidu', name:'VOD 德国站', type:'Anthropic Messages', endpoint:'https://overseas-de.exp.bcevod.com', models:1, status:'正常', key:'••••••••', checked:'昨天 18:16' },
-    { id:'ark', brand:'volc', name:'火山方舟', type:'Chat + 视频任务原厂', endpoint:'https://ark.cn-beijing.volces.com/api/v3', models:4, status:'正常', key:'ark-••••••••••••••', checked:'今天 10:02' }
+    { id:'openai', brand:'openai', name:'OpenAI', type:'OpenAI 兼容 / Responses', endpoint:'https://api.openai.com/v1', models:3, status:'正常', key:'', checked:'今天 09:40' },
+    { id:'anthropic', brand:'anthropic', name:'Anthropic', type:'Messages 原厂', endpoint:'https://api.anthropic.com/v1', models:2, status:'正常', key:'', checked:'今天 09:41' },
+    { id:'google', brand:'google', name:'Google Gemini', type:'generateContent 原厂', endpoint:'https://generativelanguage.googleapis.com/v1beta', models:2, status:'正常', key:'', checked:'今天 09:42' },
+    { id:'qianfan', brand:'baidu', name:'百度千帆', type:'OpenAI 兼容 + 视频任务', endpoint:'https://qianfan.baidubce.com/v2', models:3, status:'需检查', key:'', checked:'今天 10:18' },
+    { id:'vod-bj', brand:'baidu', name:'百度智能云 VOD 北京', type:'OpenAI 兼容 / 多模态', endpoint:'https://vod.bj.baidubce.com', models:1, status:'正常', key:'', checked:'今天 09:55' },
+    { id:'vod-hk', brand:'baidu', name:'VOD 国际站香港', type:'Gemini Native', endpoint:'https://vod2.hkg.baidubce.com', models:1, status:'正常', key:'', checked:'昨天 18:12' },
+    { id:'vod-us', brand:'baidu', name:'VOD 美国站', type:'Gemini Native', endpoint:'https://overseas.exp.bcevod.com', models:1, status:'正常', key:'', checked:'昨天 18:14' },
+    { id:'vod-de', brand:'baidu', name:'VOD 德国站', type:'Anthropic Messages', endpoint:'https://overseas-de.exp.bcevod.com', models:1, status:'正常', key:'', checked:'昨天 18:16' },
+    { id:'ark', brand:'volc', name:'火山方舟', type:'Chat + 视频任务原厂', endpoint:'https://ark.cn-beijing.volces.com/api/v3', models:4, status:'正常', key:'', checked:'今天 10:02' }
   ];
 
   const S = 'support', P = 'partial', U = 'unsupported', K = 'unknown';
