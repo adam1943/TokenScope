@@ -66,7 +66,7 @@ function metric(a,b){ return `<div class="metric"><small>${a}</small><strong>${b
 
 const routeLabels = {
   dashboard:'总览', providers:'Provider 配置', matrix:'模型能力矩阵', probe:'Token Probe',
-  suites:'测试套件', protocols:'协议测试', compare:'A/B Compare', customers:'客户问询',
+  suites:'测试套件', perf:'性能压测', eval:'效果评测', protocols:'协议测试', compare:'A/B Compare', customers:'客户问询',
   reports:'报告中心', docs:'文档说明'
 };
 
@@ -82,6 +82,13 @@ function statsFromData(){
   return { providers: providers.length, models: models.length, endpoints, text, video, vision, fails, rate, cases: cases.length };
 }
 
+function slaPass(row){
+  const buckets = { '1k':'<4K','9k':'<8K','16k':'<32K','32k':'<64K','64k':'<128K','128k':'<256K','200k':'<256K' };
+  const tier = (state.data.slaTiers||[]).find(t => t.id === buckets[row.bucket]);
+  const p90Limit = tier ? tier.p90 : 70;
+  const ok = row.ttftP90 < p90Limit && row.otps >= 30;
+  return { ok, p90Limit, tier: tier?tier.id:'—' };
+}
 function coverageOf(key){
   const vals = state.data.models.map(m => m.capability[key]);
   const score = vals.reduce((s,v)=> s + (v==='support'?1:v==='partial'?0.5:0), 0);
@@ -103,16 +110,16 @@ const views = {
       ['配置 Provider','填写中转站信息并验证连接','providers'],
       ['选择模型','从预置模型中选择或自定义配置','matrix'],
       ['运行测试','选择测试套件开始自动化测试','suites'],
-      ['查看结果','分析通过率与性能定位问题','probe'],
-      ['对比优化','使用 A/B 对比评估不同方案','compare'],
-      ['导出报告','生成并导出 HTML 测试报告','reports']
+      ['性能压测','1k–200k × 并发梯度 + SLA','perf'],
+      ['效果评测','AIME / GPQA / HLE 等 11 数据集','eval'],
+      ['导出报告','生成 HTML 测试报告','reports']
     ];
     return `<div class="page-head dash-head">
-        <div><h1 class="hero-title">${hello}</h1><p class="page-subtitle">欢迎使用 TokenScope，快速完成中转站的模型验真与性能测试。</p></div>
+        <div><h1 class="hero-title">${hello}</h1><p class="page-subtitle">欢迎使用 TokenScope。协议验真之外，按 THVV 口径做 1k–200k 性能压测与 11 数据集效果评测。</p></div>
         <div class="head-actions">
           ${btn('单发探针','go-probe','btn-primary','play')}
-          ${btn('开始测试','go-suites','btn-primary','flask-conical')}
-          ${btn('A/B 对比','go-compare','btn-ghost','scale')}
+          ${btn('性能压测','go-perf','btn-primary','gauge')}
+          ${btn('效果评测','go-eval','btn-ghost','graduation-cap')}
           ${btn('导出 HTML','export-report','btn-ghost','download')}
         </div>
       </div>
@@ -188,7 +195,66 @@ const views = {
       <button class="btn btn-primary" data-action="run-suite">${icon('play')}<span>运行选中套件</span></button></div></div>
       <div class="kb-grid">${list.map(suiteCard).join('')}</div>${list.length?'':'<div class="empty-state">该分类下暂无套件</div>'}</section>`;
   },
-  protocols(){
+  perf(){
+    const rows = state.data.perfRuns || [];
+    const sla = state.data.slaTiers || [];
+    const buckets = state.data.perfBuckets || [];
+    const pass = rows.filter(r => slaPass(r).ok).length;
+    return `${pageHead('Vendor perf','性能压测','对齐 THVV：7 档中文输入（1k–200k）× 并发梯度。指标含 TTFT / TTLT / OTPS，并按输入档位做 SLA 判定。协议支持 OpenAI Chat Completions 与 Anthropic Messages。',btn('重新生成报告','view-perf-report','btn-soft','file-text')+btn('运行 bench-all','run-perf','btn-primary','play'))}
+      <section class="stat-grid">
+        ${statCard('档位', buckets.length, '1k / 9k / 16k / 32k / 64k / 128k / 200k', 'layers', 'blue', 'perf')}
+        ${statCard('矩阵行', rows.length, `${pass} 行达标 · ${rows.length-pass} 行违规`, 'table-properties', 'green', 'perf')}
+        ${statCard('OTPS 下限', '≥ 30', '>10B 模型 L1；L2 ≥ 10', 'gauge', 'purple', 'perf')}
+        ${statCard('总体 SLA', pass===rows.length?'通过':'部分通过', 'TTFT P50/P90 + OTPS 联合判定', 'shield-check', pass===rows.length?'green':'amber', 'reports')}
+      </section>
+      <section class="page-card">
+        <h2 class="panel-title">输入档位</h2>
+        <div class="suite-strip">${buckets.map(b=>`<article class="suite-mini"><b>${esc(b.id)}</b><span>${esc(b.label)}</span><small class="muted">${esc(b.scene)}</small></article>`).join('')}</div>
+      </section>
+      <section class="page-card">
+        <div class="section-head"><h2>并发梯度对比</h2><span class="muted">口径：TTFT 秒 · OTPS tokens/s</span></div>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>档位</th><th>并发</th><th>请求</th><th>成功</th><th>失败</th><th>TTFT P50</th><th>TTFT P90</th><th>P90 阈值</th><th>OTPS</th><th>SLA</th><th>失败原因</th></tr></thead>
+        <tbody>${rows.map(r=>{
+          const j = slaPass(r);
+          return `<tr><td>${esc(r.bucket)}</td><td>${r.conc}</td><td>${r.n}</td><td>${r.ok}</td><td>${r.fail}</td><td>${r.ttftP50.toFixed(2)}</td><td>${r.ttftP90.toFixed(2)}</td><td>${j.p90Limit}</td><td>${r.otps.toFixed(1)}</td><td>${statusPill(j.ok?'pass':'fail', j.ok?'达标':'违规')}</td><td class="muted">${esc(r.failReason||'—')}</td></tr>`;
+        }).join('')}</tbody></table></div>
+      </section>
+      <section class="page-card">
+        <h2 class="panel-title">SLA 阈值（THVV sla_eval）</h2>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>档位</th><th>Input tokens</th><th>TTFT P50</th><th>TTFT P90</th></tr></thead>
+        <tbody>${sla.map(t=>`<tr><td>${esc(t.id)}</td><td>${t.lo.toLocaleString()} – ${t.hi.toLocaleString()}</td><td>&lt; ${t.p50}s</td><td>&lt; ${t.p90}s</td></tr>`).join('')}</tbody></table></div>
+        <p class="muted" style="margin-top:10px">另需低并发预热 5 分钟；正式档压测 10–15 分钟，稳定后再采集。OTPS：激活参数 &gt;10B 的 L1 ≥ 30 tok/s，L2 ≥ 10；≤10B ≥ 100。</p>
+      </section>`;
+  },
+  eval(){
+    const ds = state.data.evalDatasets || [];
+    const runs = state.data.evalRuns || [];
+    const pass = runs.filter(r=>r.status==='pass').length;
+    const fail = runs.filter(r=>r.status==='fail').length;
+    return `${pageHead('Vendor eval','效果评测','对齐 THVV / EvalScope：11 个主流数据集。基线允许 ±2–4% 浮动。HLE / SimpleQA 需要独立 LLM Judge；代码与 SWE 数据集建议 Docker。',btn('查看评测报告','view-eval-report','btn-soft','file-text')+btn('运行全部数据集','run-eval','btn-primary','play'))}
+      <section class="stat-grid">
+        ${statCard('数据集', ds.length, 'AIME / GPQA / HLE / MMLU-Pro / τ² / SWE…', 'library', 'blue', 'eval')}
+        ${statCard('达标', pass, `${fail} 个低于基线 · ${runs.filter(r=>r.status==='skip').length} 个跳过`, 'check-circle-2', 'green', 'eval')}
+        ${statCard('需 Judge', ds.filter(d=>d.judge).length, 'HLE、SimpleQA 强制配置 Judge', 'sparkles', 'purple', 'eval')}
+        ${statCard('需 Docker', ds.filter(d=>d.docker).length, 'LiveCodeBench / SWE-Bench', 'container', 'amber', 'eval')}
+      </section>
+      <section class="page-card">
+        <div class="section-head"><h2>数据集与基线对照</h2><span class="muted">基线来自 THVV 效果验收标准，容差 ±4%</span></div>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>数据集</th><th>说明</th><th>repeats</th><th>Judge</th><th>Docker</th><th>基线</th><th>本次得分</th><th>题目</th><th>跳过</th><th>判定</th></tr></thead>
+        <tbody>${ds.map(d=>{
+          const r = runs.find(x=>x.id===d.id) || {score:null,n:0,skipped:0,status:'skip'};
+          const label = r.status==='pass'?'达标':r.status==='fail'?'低于基线':'未跑';
+          return `<tr><td><b>${esc(d.name)}</b></td><td class="muted">${esc(d.desc)}</td><td>${d.repeats}</td><td>${d.judge?'需要':'—'}</td><td>${d.docker?'需要':'—'}</td><td>${d.baseline||'—'}</td><td>${r.score==null?'—':r.score}</td><td>${r.n||'—'}</td><td>${r.skipped||0}</td><td>${statusPill(r.status==='pass'?'pass':r.status==='fail'?'fail':'warn', label)}</td></tr>`;
+        }).join('')}</tbody></table></div>
+      </section>
+      <section class="page-card">
+        <h2 class="panel-title">报告结构（eval_report_v2）</h2>
+        <div class="suite-strip" style="grid-template-columns:repeat(6,minmax(0,1fr))">
+          ${[['1','核心结论','正确率 / 题数 / 跳过 KPI'],['2','效果与稳定性','repeats / pass@k 对比'],['3','体验与性能','TTFT / TPOT / 吞吐'],['4','评测配置','生效参数，凭证脱敏'],['5','逐题证据','思维链 / 答案 / 评分'],['6','异常跳过','ignore_errors 原因分类']].map(x=>`<article class="suite-mini"><b>${x[0]}</b><span>${x[1]}</span><small class="muted">${x[2]}</small></article>`).join('')}
+        </div>
+      </section>`;
+  },
+    protocols(){
     return `${pageHead('Protocols','API 协议支持测试','覆盖 Chat Completions、Responses、Anthropic Messages、Gemini Native，以及 Schema / SSE / 工具参数编码。',btn('运行协议套件','run-protocol-suite','btn-primary','play'))}
       <section class="proto-grid">${state.data.protocols.map(protocolCard).join('')}</section>
       <section class="page-card"><h2 class="panel-title">协议用例</h2>
@@ -226,14 +292,14 @@ const views = {
     const list = state.data.reports.filter(r => (tab==='全部报告'||r.kind===tab) && (!q || (r.name+r.target+r.id).toLowerCase().includes(q)));
     return `${pageHead('Report center','报告中心','集中查看测试结论、失败证据和可分享摘要。',btn('导出全部','export-report','btn-soft','download')+btn('生成报告','generate-report','btn-primary','file-plus-2'))}
       <section class="page-card"><div class="toolbar"><div class="filter-tabs" style="margin:0">
-        ${['全部报告','准入测试','性能对比','周报'].map(x=>`<button class="filter-tab ${tab===x?'is-active':''}" data-report-tab="${x}">${x}</button>`).join('')}
+        ${['全部报告','准入测试','性能压测','效果评测','性能对比','周报'].map(x=>`<button class="filter-tab ${tab===x?'is-active':''}" data-report-tab="${x}">${x}</button>`).join('')}
       </div><input class="input search-input" id="report-search" value="${esc(state.reportQuery)}" placeholder="搜索报告名称"/></div>
       <div class="report-list">${list.map(reportCard).join('') || '<div class="empty-state">没有符合筛选的报告</div>'}</div></section>`;
   },
   docs(){
     const groups = [...new Set(state.data.docs.map(d=>d.group))];
     const current = state.data.docs.find(d=>d.id===state.docId) || state.data.docs[0];
-    return `${pageHead('Documentation','文档说明','测试判定、四协议手册、VOD 用户手册与客户知识库。源手册：飞书 Wiki 总览。')}
+    return `${pageHead('Documentation','文档说明','测试判定、四协议手册、VOD 用户手册、THVV 性能/效果验收与客户知识库。')}
       <section class="doc-layout">
         <nav class="doc-nav">${groups.map(g=>`<div class="doc-nav-group">${esc(g)}</div>${state.data.docs.filter(d=>d.group===g).map(d=>`<button class="${d.id===current.id?'active':''}" data-doc="${d.id}">${esc(d.title)}</button>`).join('')}`).join('')}</nav>
         <div class="doc-main">
@@ -403,6 +469,8 @@ function analyzeText(text){
   if (/json_schema|response_schema|output_config|structured/.test(t)) add(83,'Schema 字段路径不一致','四家参数名不同；Gemini 拒绝 items:{}。',['PX-006','PX-007','PX-008','PX-009']);
   if (/cgt|video_url|seedance|succeeded|completed/.test(t)) add(87,'视频任务终态/字段丢失','原厂 id 在 cgt-*，终态 succeeded，URL 24h 过期。',['VD-006','VD-008']);
   if (/stop|截断|橘子/.test(t)) add(78,'stop 已发送但不生效','属于行为不生效，不一定是字段丢失。',['TP-003']);
+  if (/ttft|p90|压测|otps|sla/.test(t)) add(82,'性能 SLA 未达标','按输入档位看 TTFT P90 与 OTPS≥30。128k 常见超时。',['#P01']);
+  if (/aime|hle|mmlu|评测|judge/.test(t)) add(81,'效果评测低于基线','HLE/SimpleQA 需 Judge；允许 ±4% 浮动。',['#E01']);
   if (!hits.length) add(42,'信息不足，先跑协议冒烟','建议先跑 S1 连通性 + S6 协议矩阵，再针对错误码缩小范围。',['PX-001']);
   hits.sort((a,b)=>b.conf-a.conf);
   return { hits, excerpt: text.slice(0,240) };
@@ -459,11 +527,42 @@ function renderDoc(id){
     'vod-api': `<h2>API 调用</h2><p>北京站多模态对话示例（OpenAI 兼容）：<code>POST /v2/chat/completions</code>，host <code>vod.bj.baidubce.com</code>。角色支持 model / user / assistant。香港站走 Gemini Native generateContent；德国站走 Anthropic Messages。</p>`,
     'vod-mm': `<h2>多模态模型</h2><p>G3FP / G3PP / G31PP 走 Chat Completions。海外 BG/BO/BGL/BD 按站点协议不同。视频理解与视频生成不是同一条 API：理解走对话，生成走任务接口。</p>`,
     'vod-sr': `<h2>视频超分 / 字幕擦除</h2><p>超分按输出分辨率时长计费；字幕擦除识别对白区域后还原被遮挡画面，支持中英文字幕常见字体与特效。两者都是异步任务，查询方式与视频生成相同。</p>`,
+    'perf-sla': `<h2>性能验收 SLA</h2><p>口径对齐 THVV <code>sla_eval.py</code>。按 InputTokens（不含 cache）分档，TTFT 单位为秒。</p>
+      <table><thead><tr><th>档位</th><th>P50</th><th>P90</th></tr></thead><tbody>
+      ${(state.data.slaTiers||[]).map(t=>`<tr><td>${esc(t.id)}（${t.lo}–${t.hi}）</td><td>&lt; ${t.p50}s</td><td>&lt; ${t.p90}s</td></tr>`).join('')}
+      </tbody></table>
+      <h3>测试要求</h3><ul><li>低并发预热 5 分钟，排除冷启动</li><li>按并发梯度压测 10–15 分钟，稳定后采集</li><li>TPM/RPM 未达承诺时，请求成功率仍须满足 SLA</li><li>OTPS：&gt;10B 模型 L1 ≥ 30 tok/s，L2 ≥ 10；≤10B ≥ 100</li></ul>
+      <p>性能页当前样本：128k 档 P90=41.2s，超过 &lt;128K 的 35s 阈值，总体部分通过。</p>`,
+    'eval-bench': `<h2>效果评测数据集</h2><p>11 个数据集，基于 EvalScope。基线允许 ±2–4% 浮动。</p>
+      <table><thead><tr><th>数据集</th><th>repeats</th><th>Judge</th><th>Docker</th><th>基线</th></tr></thead><tbody>
+      ${(state.data.evalDatasets||[]).map(d=>`<tr><td>${esc(d.name)} · ${esc(d.desc)}</td><td>${d.repeats}</td><td>${d.judge?'是':'否'}</td><td>${d.docker?'是':'否'}</td><td>${d.baseline||'—'}</td></tr>`).join('')}
+      </tbody></table>
+      <p>HLE / SimpleQA 必须配置独立 Judge（默认 deepseek-v4-pro，密钥不入库）。限流 429 等待 60s 后 <code>--use-cache</code> 续跑。</p>`,
+    thvv: `<h2>THVV 对照</h2><p>TokenHub Vendor Verifier 是供应商引入前的 CLI 验证集：<code>perf</code> 做 1k–200k 压测并产出 HTML/xlsx，<code>eval</code> 跑 11 数据集并产出六章效果报告。</p>
+      <ul><li>本工作台把 THVV 的档位、SLA、数据集和报告结构做成可浏览的供应商验收页。</li><li>仍保留协议验真、透传 Probe、视频任务和客户问询。</li><li>静态原型不发起真实压测；密钥只允许本机填写，不会写入仓库。</li></ul>
+      <p>perf 报告四章：总体结论 / 并发梯度 37 列指标 / 失败分析 / 失败请求明细。eval 报告六章：核心结论 / 稳定性 / 体验性能 / 配置 / 逐题证据 / 异常跳过。</p>`,
     kb: `<h2>客户知识库</h2><p>客户问询页上传的用例会追加到这里，供后续分析复用。</p>${kb || '<p class="muted">暂无条目</p>'}`
   };
   return map[id] || map.quickstart;
 }
 
+function perfReportHtml(){
+  const rows = state.data.perfRuns||[];
+  const pass = rows.filter(r=>slaPass(r).ok).length;
+  return `<div class="metric-grid">${metric('总请求', rows.reduce((a,b)=>a+b.n,0))}${metric('成功', rows.reduce((a,b)=>a+b.ok,0))}${metric('失败', rows.reduce((a,b)=>a+b.fail,0))}${metric('SLA', pass+'/'+rows.length)}</div>
+    <h4 style="margin:16px 0 8px">一、总体结论</h4><p>128k 档 TTFT P90 超时，OTPS 跌破 30。建议降并发并核对该档 tokenizer 计长。</p>
+    <h4 style="margin:16px 0 8px">二、失败分析</h4><p class="muted">超时与 429 为主，context overflow 仅出现在 200k。</p>
+    <h4 style="margin:16px 0 8px">三、处置建议</h4><ul><li>128k 以上先跑 conc=1 预热 5 分钟</li><li>429 等待 60s 后续跑</li><li>核对 API_URL 是否为完整 /v1/chat/completions 或 /v1/messages</li></ul>`;
+}
+function evalReportHtml(){
+  const ds = state.data.evalDatasets||[];
+  const runs = state.data.evalRuns||[];
+  const fail = runs.filter(r=>r.status==='fail');
+  return `<div class="metric-grid">${metric('数据集', ds.length)}${metric('达标', runs.filter(r=>r.status==='pass').length)}${metric('低于基线', fail.length)}${metric('跳过', runs.filter(r=>r.status==='skip').length)}</div>
+    <h4 style="margin:16px 0 8px">核心结论</h4><p>HLE 26.4 vs 32.35、SimpleQA 31.2 vs 37.56，超出 ±4% 容差。其余数据集在容差内。</p>
+    <h4 style="margin:16px 0 8px">配置</h4><p class="muted">PROTOCOL=openai，Judge 已配置（密钥已脱敏）。SWE-Bench Pro 未跑。</p>
+    <h4 style="margin:16px 0 8px">异常跳过</h4><p class="muted">HLE 跳过 6 题、SimpleQA 跳过 4 题，多为限流后 ignore_errors。</p>`;
+}
 function openModal(title, body, foot=''){
   const layer=document.querySelector('#modal-layer');
   layer.innerHTML=`<div class="modal" role="dialog"><div class="modal-head"><h3>${title}</h3><button class="modal-close" data-action="close-modal">×</button></div><div class="modal-body">${body}</div>${foot?`<div class="modal-foot">${foot}</div>`:''}</div>`;
@@ -497,7 +596,9 @@ function handleAction(action, el){
       const hits=[
         ...state.data.cases.map(c=>({t:c.name+c.code+c.summary, label:`${c.code} ${c.name}`, go:()=>{state.probeCase=c.id; navigate('probe');}})),
         ...state.data.models.map(m=>({t:m.name+m.provider, label:`模型 ${m.name}`, go:()=>navigate('matrix')})),
-        ...state.data.docs.map(d=>({t:d.title+d.group, label:`文档 ${d.title}`, go:()=>{state.docId=d.id; navigate('docs');}}))
+        ...state.data.docs.map(d=>({t:d.title+d.group, label:`文档 ${d.title}`, go:()=>{state.docId=d.id; navigate('docs');}})),
+        {t:'性能压测 sla ttft', label:'性能压测', go:()=>navigate('perf')},
+        {t:'效果评测 aime hle', label:'效果评测', go:()=>navigate('eval')}
       ].filter(x=>q && x.t.toLowerCase().includes(q)).slice(0,8);
       document.querySelector('#search-hits').innerHTML = hits.length ? hits.map((h,i)=>`<button class="probe-case" data-hit="${i}"><b>${esc(h.label)}</b></button>`).join('') : '<div class="empty-state">没有匹配</div>';
       document.querySelectorAll('[data-hit]').forEach((btn,i)=>btn.addEventListener('click',()=>{ closeModal(); hits[i].go(); }));
@@ -521,6 +622,12 @@ function handleAction(action, el){
   if (action==='go-probe'){ navigate('probe'); return; }
   if (action==='go-suites'){ navigate('suites'); return; }
   if (action==='go-compare'){ navigate('compare'); return; }
+  if (action==='go-perf'){ navigate('perf'); return; }
+  if (action==='go-eval'){ navigate('eval'); return; }
+  if (action==='run-perf'){ toast('已按 THVV bench-all 口径生成模拟矩阵'); navigate('perf'); return; }
+  if (action==='run-eval'){ toast('已按 11 数据集生成模拟评测'); navigate('eval'); return; }
+  if (action==='view-perf-report'){ const r=state.data.reports.find(x=>x.id==='#P01'); if(r) openModal(`${r.name}`, perfReportHtml(), btn('关闭','close-modal','btn-primary')); return; }
+  if (action==='view-eval-report'){ const r=state.data.reports.find(x=>x.id==='#E01'); if(r) openModal(`${r.name}`, evalReportHtml(), btn('关闭','close-modal','btn-primary')); return; }
   if (action==='run-suite' || action==='run-protocol-suite'){ toast('套件已开始运行'); navigate('probe'); return; }
   if (action==='new-suite'){ toast('已创建空白套件'); return; }
   if (action==='run-compare'){ toast('A/B 对比完成'); return; }
@@ -571,7 +678,7 @@ document.addEventListener('click', e => {
   const detail=e.target.closest('[data-model-detail]')?.dataset.modelDetail; if(detail){ const m=state.data.models.find(x=>x.id===detail); openModal(m.name, `<div class="metric-grid">${metric('Provider',m.provider)}${metric('类型',m.kind)}${metric('上下文',m.context)}${metric('协议', (m.protocols||[]).join(', '))}</div><p class="muted" style="margin-top:12px">${(m.tags||[]).join(' · ')}</p>`, btn('关闭','close-modal','btn-primary')); return; }
   const openCase=e.target.closest('[data-open-case]')?.dataset.openCase; if(openCase){ state.probeCase=openCase; navigate('probe'); return; }
   const vs=e.target.closest('[data-view-suite]')?.dataset.viewSuite; if(vs){ const s=state.data.suites.find(x=>x.id===vs); openModal(`${s.id} ${s.name}`, `<p>${esc(s.desc)}</p>${s.cases.map(id=>{const c=state.data.cases.find(x=>x.id===id); return c?`<div class="record-row"><div class="record-main"><b>${esc(c.code)} ${esc(c.name)}</b><small>${esc(c.summary)}</small></div>${statusPill(c.status)}</div>`:''}).join('')}<div class="modal-foot">${btn('打开首条用例','', 'btn-primary')}</div>`, btn('关闭','close-modal')+`<button class="btn btn-primary" data-open-case="${s.cases[0]}">打开用例</button>`); return; }
-  const vr=e.target.closest('[data-view-report]')?.dataset.viewReport; if(vr){ const r=state.data.reports.find(x=>x.id===vr); openModal(`${r.name} ${r.id}`, `<div class="metric-grid">${metric('对象',r.target)}${metric('通过', r.passed+'/'+r.total)}${metric('时间', r.time)}${metric('类型', r.kind)}</div><p style="margin-top:14px">${esc(r.note)}</p>`, btn('关闭','close-modal','btn-primary')); return; }
+  const vr=e.target.closest('[data-view-report]')?.dataset.viewReport; if(vr){ const r=state.data.reports.find(x=>x.id===vr); const extra = r.id==='#P01'?perfReportHtml(): r.id==='#E01'?evalReportHtml(): `<p style="margin-top:14px">${esc(r.note)}</p>`; openModal(`${r.name} ${r.id}`, `<div class="metric-grid">${metric('对象',r.target)}${metric('通过', r.passed+'/'+r.total)}${metric('时间', r.time)}${metric('类型', r.kind)}</div>${extra}`, btn('关闭','close-modal','btn-primary')); return; }
 });
 
 document.addEventListener('change', e => {

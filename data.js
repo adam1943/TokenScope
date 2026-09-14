@@ -190,7 +190,9 @@ window.TokenScopeData = (() => {
     { id:'#1782', name:'Seedance 端到端链路', kind:'准入测试', target:'火山方舟 / seedance-1-0', status:'pass', label:'通过', icon:'clapperboard', time:'昨天 16:42', passed:6, total:6, note:'cgt id 与 video_url 完整。' },
     { id:'#1781', name:'Token 统计回归', kind:'性能对比', target:'OpenAI / gpt-4o', status:'pass', label:'通过', icon:'activity', time:'昨天 14:18', passed:8, total:8, note:'stream usage 稳定。' },
     { id:'#1780', name:'四协议 Schema 对齐', kind:'准入测试', target:'OpenAI / Anthropic / Gemini', status:'warn', label:'部分通过', icon:'braces', time:'昨天 11:02', passed:3, total:4, note:'Gemini items:{} 被拒。' },
-    { id:'W36', name:'Provider 健康周报', kind:'周报', target:'9 个 Provider / 17 个模型', status:'normal', label:'可查看', icon:'chart-no-axes-combined', time:'周一 09:00', passed:14, total:17, note:'千帆透传与一致性需跟进。' }
+    { id:'W36', name:'Provider 健康周报', kind:'周报', target:'9 个 Provider / 17 个模型', status:'normal', label:'可查看', icon:'chart-no-axes-combined', time:'周一 09:00', passed:14, total:17, note:'千帆透传与一致性需跟进。' },
+    { id:'#P01', name:'性能测试报告 · 1k–200k', kind:'性能压测', target:'火山方舟 / doubao-seed-1.6', status:'warn', label:'部分通过', icon:'gauge', time:'今天 15:40', passed:10, total:12, note:'128k 档 TTFT P90=41.2s，超过 <128K 的 35s 阈值。' },
+    { id:'#E01', name:'效果评测报告 · 11 数据集', kind:'效果评测', target:'火山方舟 / doubao-seed-1.6', status:'warn', label:'部分通过', icon:'graduation-cap', time:'今天 16:12', passed:8, total:11, note:'HLE / SimpleQA 低于基线超过 ±4%。' }
   ];
 
   const protocols = [
@@ -216,7 +218,10 @@ window.TokenScopeData = (() => {
     { id:'vod-api', title:'API 调用', group:'用户手册' },
     { id:'vod-mm', title:'多模态模型', group:'用户手册' },
     { id:'vod-sr', title:'视频超分 / 字幕擦除', group:'用户手册' },
-    { id:'kb', title:'客户知识库', group:'知识库' }
+    { id:'kb', title:'客户知识库', group:'知识库' },
+    { id:'perf-sla', title:'性能验收 SLA', group:'供应商验收' },
+    { id:'eval-bench', title:'效果评测数据集', group:'供应商验收' },
+    { id:'thvv', title:'THVV 对照', group:'供应商验收' }
   ];
 
   const kbSeed = [
@@ -225,5 +230,61 @@ window.TokenScopeData = (() => {
     { id:'kb-3', title:'Gemini contents 被转成 messages', source:'客户工单 #4501', tags:['协议','Gemini'], body:'原生 generateContent 请求被 400。抓包发现 contents 被改成 messages。', analysis:'协议转换层把 Gemini Native 误当成 Chat Completions。对应 PX-002。' }
   ];
 
-  return { providers, models, cases, suites, reports, protocols, docs, kbSeed };
+
+  const slaTiers = [
+    { id:'<4K', lo:1000, hi:4000, p50:2.0, p90:5.0, bucket:'1k' },
+    { id:'<8K', lo:4000, hi:8000, p50:2.5, p90:5.0, bucket:'9k' },
+    { id:'<32K', lo:8000, hi:32000, p50:4.0, p90:8.0, bucket:'16k' },
+    { id:'<64K', lo:32000, hi:64000, p50:8.0, p90:15.0, bucket:'32k' },
+    { id:'<128K', lo:64000, hi:128000, p50:15.0, p90:35.0, bucket:'64k' },
+    { id:'<256K', lo:128000, hi:256000, p50:30.0, p90:70.0, bucket:'128k' }
+  ];
+  const perfBuckets = [
+    { id:'1k', tokens:1000, label:'1k 中文对话', scene:'最小上下文冒烟' },
+    { id:'9k', tokens:9000, label:'9k 标准对话', scene:'含 cold / hot / mix50 前缀缓存' },
+    { id:'16k', tokens:16000, label:'16k 长对话', scene:'中长上下文' },
+    { id:'32k', tokens:32000, label:'32k 长文档', scene:'文档问答' },
+    { id:'64k', tokens:64000, label:'64k 长文档', scene:'多文件汇总' },
+    { id:'128k', tokens:128000, label:'128k 超长上下文', scene:'全书理解' },
+    { id:'200k', tokens:200000, label:'200k 极限档', scene:'最大窗口压测' }
+  ];
+  const evalDatasets = [
+    { id:'aime25', name:'AIME25', desc:'数学竞赛题', repeats:16, judge:false, docker:false, baseline:95.67 },
+    { id:'aime26', name:'AIME26', desc:'AIME 2026 数学竞赛', repeats:16, judge:false, docker:false, baseline:95 },
+    { id:'gpqa_diamond', name:'GPQA-Diamond', desc:'研究生级问答', repeats:3, judge:false, docker:false, baseline:89.73 },
+    { id:'hle', name:'HLE', desc:"Humanity's Last Exam", repeats:1, judge:true, docker:false, baseline:32.35 },
+    { id:'tau2_bench', name:'τ²-Bench', desc:'Agent 对话 · retail/telecom/airline', repeats:5, judge:false, docker:false, baseline:88.7 },
+    { id:'mmlu_pro', name:'MMLU-Pro', desc:'多学科多选题', repeats:1, judge:false, docker:false, baseline:87.25 },
+    { id:'simple_qa', name:'SimpleQA', desc:'事实准确性 · LLM Judge', repeats:1, judge:true, docker:false, baseline:37.56 },
+    { id:'longbench_v2', name:'LongBench v2', desc:'长上下文理解', repeats:1, judge:false, docker:false, baseline:68.89 },
+    { id:'live_code_bench', name:'LiveCodeBench', desc:'实时代码生成', repeats:1, judge:false, docker:true, baseline:86.92 },
+    { id:'swe_bench_verified_mini_agentic', name:'SWE-Bench Mini', desc:'Agentic 软件工程', repeats:1, judge:false, docker:true, baseline:85.42 },
+    { id:'swe_bench_pro', name:'SWE-Bench Pro', desc:'软件工程 Pro', repeats:1, judge:false, docker:true, baseline:0 }
+  ];
+  const perfRuns = [
+    { bucket:'1k', conc:1, n:20, ok:20, fail:0, ttftP50:0.42, ttftP90:0.81, ttltP90:1.6, otps:52.4, tpm:88000, failReason:'' },
+    { bucket:'1k', conc:32, n:200, ok:198, fail:2, ttftP50:0.68, ttftP90:1.45, ttltP90:2.4, otps:41.2, tpm:312000, failReason:'429 限流 x2' },
+    { bucket:'9k', conc:16, n:120, ok:120, fail:0, ttftP50:1.12, ttftP90:2.08, ttltP90:4.1, otps:38.6, tpm:246000, failReason:'' },
+    { bucket:'16k', conc:16, n:80, ok:79, fail:1, ttftP50:1.84, ttftP90:3.62, ttltP90:7.8, otps:36.1, tpm:198000, failReason:'超时 x1' },
+    { bucket:'32k', conc:16, n:60, ok:58, fail:2, ttftP50:3.40, ttftP90:7.15, ttltP90:14.2, otps:33.8, tpm:154000, failReason:'5xx x2' },
+    { bucket:'64k', conc:8, n:40, ok:38, fail:2, ttftP50:8.90, ttftP90:18.4, ttltP90:32.0, otps:31.2, tpm:92000, failReason:'超时 x2' },
+    { bucket:'128k', conc:8, n:30, ok:24, fail:6, ttftP50:22.1, ttftP90:41.2, ttltP90:68.0, otps:22.4, tpm:41000, failReason:'超时 x4 · 429 x2' },
+    { bucket:'200k', conc:4, n:16, ok:13, fail:3, ttftP50:38.6, ttftP90:62.0, ttltP90:96.0, otps:18.1, tpm:22000, failReason:'context overflow x3' }
+  ];
+  const evalRuns = [
+    { id:'aime25', score:94.8, n:30, skipped:0, status:'pass' },
+    { id:'aime26', score:93.3, n:30, skipped:0, status:'pass' },
+    { id:'gpqa_diamond', score:88.1, n:198, skipped:2, status:'pass' },
+    { id:'hle', score:26.4, n:100, skipped:6, status:'fail' },
+    { id:'tau2_bench', score:86.2, n:90, skipped:0, status:'pass' },
+    { id:'mmlu_pro', score:86.9, n:200, skipped:0, status:'pass' },
+    { id:'simple_qa', score:31.2, n:200, skipped:4, status:'fail' },
+    { id:'longbench_v2', score:67.4, n:150, skipped:1, status:'pass' },
+    { id:'live_code_bench', score:84.0, n:80, skipped:3, status:'pass' },
+    { id:'swe_bench_verified_mini_agentic', score:81.6, n:50, skipped:0, status:'pass' },
+    { id:'swe_bench_pro', score:null, n:0, skipped:0, status:'skip' }
+  ];
+
+  return { providers, models, cases, suites, reports, protocols, docs, kbSeed, slaTiers, perfBuckets, evalDatasets, perfRuns, evalRuns };
+
 })();

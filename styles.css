@@ -283,6 +283,7 @@ a { color: var(--blue); }
 }
 .suite-mini b { color: #3b82f6; font-size: 13px; }
 .suite-mini span { color: #344054; font-weight: 650; }
+.suite-mini small { color: #6b7280; line-height: 1.4; }
 .flow-rail { display: flex; align-items: stretch; gap: 6px; overflow: auto; padding-bottom: 4px; }
 .flow-item {
   flex: 1; min-width: 140px; border: 0; background: transparent;
