@@ -299,7 +299,7 @@ const views = {
   docs(){
     const groups = [...new Set(state.data.docs.map(d=>d.group))];
     const current = state.data.docs.find(d=>d.id===state.docId) || state.data.docs[0];
-    return `${pageHead('Documentation','文档说明','测试判定、四协议手册、VOD 用户手册、THVV 性能/效果验收与客户知识库。')}
+    return `${pageHead('Documentation','文档说明','测试判定、四协议手册、性能/效果验收与客户知识库。')}
       <section class="doc-layout">
         <nav class="doc-nav">${groups.map(g=>`<div class="doc-nav-group">${esc(g)}</div>${state.data.docs.filter(d=>d.group===g).map(d=>`<button class="${d.id===current.id?'active':''}" data-doc="${d.id}">${esc(d.title)}</button>`).join('')}`).join('')}</nav>
         <div class="doc-main">
@@ -463,8 +463,8 @@ function analyzeText(text){
   if (/tool_choice|tool_calls|get_weather/.test(t)) add(92,'tool_choice 被改写或被模型忽略','兼容层常把 none 变成 auto。',['TP-001']);
   if (/prompt_tokens|token 抖|86|87|89/.test(t)) add(88,'Prompt Token 不稳定','相同请求出现多档 usage，优先查隐式 system 注入。',['TK-004']);
   if (/\bhi\b|max_tokens|一致性|字段结构/.test(t)) add(90,'响应体 Schema 漂移','短请求重复采样最容易暴露 content 类型不一致。',['TK-010']);
-  if (/contents|generatecontent|gemini/.test(t)) add(86,'Gemini Native 被转成 Chat Completions','contents/parts/role=model 是原厂结构，不能改成 messages。',['PX-002','VOD-001']);
-  if (/x-api-key|anthropic|\/v1\/messages|max_tokens 必填/.test(t)) add(84,'Messages 协议鉴权或必填项丢失','德国站走 /v1/messages，需要 x-api-key 与 max_tokens。',['PX-004','VOD-002','PX-012']);
+  if (/contents|generatecontent|gemini/.test(t)) add(86,'Gemini Native 被转成 Chat Completions','contents/parts/role=model 是原厂结构，不能改成 messages。',['PX-002']);
+  if (/x-api-key|anthropic|\/v1\/messages|max_tokens 必填/.test(t)) add(84,'Messages 协议鉴权或必填项丢失','Messages 需要 x-api-key 与 max_tokens。',['PX-004','PX-012']);
   if (/responses|previous_response_id|max_output_tokens/.test(t)) add(80,'Responses 字段未映射','max_tokens ≠ max_output_tokens，会话状态常被丢掉。',['PX-005','TP-009']);
   if (/json_schema|response_schema|output_config|structured/.test(t)) add(83,'Schema 字段路径不一致','四家参数名不同；Gemini 拒绝 items:{}。',['PX-006','PX-007','PX-008','PX-009']);
   if (/cgt|video_url|seedance|succeeded|completed/.test(t)) add(87,'视频任务终态/字段丢失','原厂 id 在 cgt-*，终态 succeeded，URL 24h 过期。',['VD-006','VD-008']);
@@ -511,22 +511,7 @@ function renderDoc(id){
 {"model":"doubao-seedance-1-0-pro-250528","content":[{"type":"text","text":"纸飞机飞过城市"}],"duration":5,"watermark":false}
 # 轮询 GET /api/v3/contents/generations/tasks/{id}
 # 终态 succeeded，视频在 content.video_url`)}</pre>`,
-    'vod-overview': `<h2>VOD 开通与区域</h2><p>来源：飞书用户手册总览（计费 / 鉴权 / 任务详情 / 媒资上传 / API / 多模态 / 视频超分 / 字幕擦除）。</p>
-      <h3>国内站（北京）</h3><p>进入 VOD 控制台即开通。文档：cloud.baidu.com/product/vod.html。API 域名：<code>https://vod.bj.baidubce.com</code>。</p>
-      <h3>国际站（香港）</h3><p>海外对海外，美元结算。模型：BG、BO、BGL、BD。登录海外账号后到 VOD 控制台创建 API Key。调用：</p>
-      <pre class="code-block">${esc(`curl -X POST "https://vod2.hkg.baidubce.com/v3/chat/gc/v1beta/models/{model}:generateContent" \\
-  -H "Authorization: Bearer {your_api_key}" -d "{your_request_body}"`)}</pre>
-      <h3>美国站</h3><p>通过北京控制台创建 API Key，人民币结算，模型 BG、BO、BGL。域名：<code>https://overseas.exp.bcevod.com</code>，路径 <code>/v1beta/models/{model}:generateContent</code>。</p>
-      <h3>德国站</h3><p>通过香港控制台创建德国 API Key，模型 BGL、BD。调用：</p>
-      <pre class="code-block">${esc(`curl -X POST "https://overseas-de.exp.bcevod.com/v1/messages" \\
-  -H "Authorization: Bearer {your_api_key}" -d "{your_request_body}"`)}</pre>`,
-    'vod-auth': `<h2>鉴权</h2><p>国内站常见 BCE 签名头：<code>Authorization</code>、<code>x-bce-date</code>、<code>x-bce-request-id</code>。海外对话接口多用 <code>Authorization: Bearer {API Key}</code>。</p><p>协议与鉴权必须成对：Messages 原厂期望 <code>x-api-key</code>；Gemini 原厂期望 <code>x-goog-api-key</code> 或 query key。网关若只转发 Bearer，可能在原厂侧 401。</p>`,
-    'vod-billing': `<h2>计费</h2><p>VOD 视频处理按次数，视频合成按输出时长与分辨率档位（LD/SD/HD）。大模型对话按 token：prompt_tokens / completion_tokens，可能含 cached / audio / image / reasoning 分项。</p><p>视频生成成功才计费；Seedance 类任务看 <code>usage.completion_tokens</code>，URL 通常 24 小时过期，过期重拉会失败但不一定再计费。</p>`,
-    'vod-task': `<h2>查询任务详情</h2><p>异步任务（视频生成、超分、字幕擦除）都是「提交得到 task id → GET 详情」。注意终态枚举：方舟 Seedance 为 <code>succeeded</code>，不要只认 <code>completed</code>。详情里应保留原厂 id、状态时间线、错误码和媒资 URL。</p>`,
-    'vod-media': `<h2>媒资上传</h2><p>先拿上传凭证，再传文件，最后把媒资 id 写进多模态 <code>image_url</code> / <code>video_url</code> / Gemini <code>fileData</code>。不要把一次性签名 URL 存成永久地址。</p>`,
-    'vod-api': `<h2>API 调用</h2><p>北京站多模态对话示例（OpenAI 兼容）：<code>POST /v2/chat/completions</code>，host <code>vod.bj.baidubce.com</code>。角色支持 model / user / assistant。香港站走 Gemini Native generateContent；德国站走 Anthropic Messages。</p>`,
-    'vod-mm': `<h2>多模态模型</h2><p>G3FP / G3PP / G31PP 走 Chat Completions。海外 BG/BO/BGL/BD 按站点协议不同。视频理解与视频生成不是同一条 API：理解走对话，生成走任务接口。</p>`,
-    'vod-sr': `<h2>视频超分 / 字幕擦除</h2><p>超分按输出分辨率时长计费；字幕擦除识别对白区域后还原被遮挡画面，支持中英文字幕常见字体与特效。两者都是异步任务，查询方式与视频生成相同。</p>`,
+    auth: `<h2>鉴权与协议头</h2><p>鉴权必须和协议成对，网关只转发一种头时，原厂侧容易 401。</p><ul><li>OpenAI 兼容：<code>Authorization: Bearer</code></li><li>Anthropic Messages：<code>x-api-key</code> + <code>anthropic-version</code></li><li>Gemini Native：<code>x-goog-api-key</code> 或 query key</li></ul><p>不要把密钥写进 URL、日志或仓库。本工作台若填写 Key，只留在当前浏览器。</p>`,
     'perf-sla': `<h2>性能验收 SLA</h2><p>口径对齐 THVV <code>sla_eval.py</code>。按 InputTokens（不含 cache）分档，TTFT 单位为秒。</p>
       <table><thead><tr><th>档位</th><th>P50</th><th>P90</th></tr></thead><tbody>
       ${(state.data.slaTiers||[]).map(t=>`<tr><td>${esc(t.id)}（${t.lo}–${t.hi}）</td><td>&lt; ${t.p50}s</td><td>&lt; ${t.p90}s</td></tr>`).join('')}

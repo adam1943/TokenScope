@@ -190,7 +190,7 @@ window.TokenScopeData = (() => {
     { id:'#1782', name:'Seedance 端到端链路', kind:'准入测试', target:'火山方舟 / seedance-1-0', status:'pass', label:'通过', icon:'clapperboard', time:'昨天 16:42', passed:6, total:6, note:'cgt id 与 video_url 完整。' },
     { id:'#1781', name:'Token 统计回归', kind:'性能对比', target:'OpenAI / gpt-4o', status:'pass', label:'通过', icon:'activity', time:'昨天 14:18', passed:8, total:8, note:'stream usage 稳定。' },
     { id:'#1780', name:'四协议 Schema 对齐', kind:'准入测试', target:'OpenAI / Anthropic / Gemini', status:'warn', label:'部分通过', icon:'braces', time:'昨天 11:02', passed:3, total:4, note:'Gemini items:{} 被拒。' },
-    { id:'W36', name:'Provider 健康周报', kind:'周报', target:'9 个 Provider / 17 个模型', status:'normal', label:'可查看', icon:'chart-no-axes-combined', time:'周一 09:00', passed:14, total:17, note:'千帆透传与一致性需跟进。' },
+    { id:'W36', name:'Provider 健康周报', kind:'周报', target:'9 个 Provider / 17 个模型', status:'normal', label:'可查看', icon:'chart-no-axes-combined', time:'周一 09:00', passed:14, total:17, note:'透传与一致性需跟进。' },
     { id:'#P01', name:'性能测试报告 · 1k–200k', kind:'性能压测', target:'火山方舟 / doubao-seed-1.6', status:'warn', label:'部分通过', icon:'gauge', time:'今天 15:40', passed:10, total:12, note:'128k 档 TTFT P90=41.2s，超过 <128K 的 35s 阈值。' },
     { id:'#E01', name:'效果评测报告 · 11 数据集', kind:'效果评测', target:'火山方舟 / doubao-seed-1.6', status:'warn', label:'部分通过', icon:'graduation-cap', time:'今天 16:12', passed:8, total:11, note:'HLE / SimpleQA 低于基线超过 ±4%。' }
   ];
@@ -198,8 +198,8 @@ window.TokenScopeData = (() => {
   const protocols = [
     { id:'openai-chat', name:'OpenAI Chat Completions', path:'POST /v1/chat/completions', auth:'Authorization: Bearer', system:'messages[] role=system', history:'messages', roles:'system / user / assistant / tool', tools:'tool_calls[].function.arguments 为 JSON 字符串', schema:'response_format.json_schema', stream:'SSE data: chat.completion.chunk + [DONE]', native:'OpenAI 及绝大多数兼容层' },
     { id:'openai-responses', name:'OpenAI Responses', path:'POST /v1/responses', auth:'Authorization: Bearer', system:'instructions', history:'input / previous_response_id', roles:'user / assistant', tools:'内置 web_search / file_search + function_call', schema:'text.format.json_schema', stream:'Responses SSE events', native:'OpenAI 原厂新协议' },
-    { id:'anthropic', name:'Anthropic Messages', path:'POST /v1/messages', auth:'x-api-key + anthropic-version', system:'顶层 system', history:'messages 仅 user/assistant 交替', roles:'user / assistant', tools:'content[].type=tool_use，input 为对象', schema:'output_config.format', stream:'named SSE: message_start / content_block_* / message_stop', native:'Claude、VOD 德国站 /v1/messages' },
-    { id:'gemini', name:'Google Gemini Native', path:'POST /v1beta/models/{model}:generateContent', auth:'x-goog-api-key 或 Bearer', system:'systemInstruction.parts', history:'contents[].parts，role=user/model', roles:'user / model', tools:'functionCall.args 为对象，按 name 配对', schema:'generationConfig.response_schema + response_mime_type', stream:':streamGenerateContent?alt=sse', native:'Gemini、VOD 香港/美国站' }
+    { id:'anthropic', name:'Anthropic Messages', path:'POST /v1/messages', auth:'x-api-key + anthropic-version', system:'顶层 system', history:'messages 仅 user/assistant 交替', roles:'user / assistant', tools:'content[].type=tool_use，input 为对象', schema:'output_config.format', stream:'named SSE: message_start / content_block_* / message_stop', native:'Claude 及 Messages 兼容端点' },
+    { id:'gemini', name:'Google Gemini Native', path:'POST /v1beta/models/{model}:generateContent', auth:'x-goog-api-key 或 Bearer', system:'systemInstruction.parts', history:'contents[].parts，role=user/model', roles:'user / model', tools:'functionCall.args 为对象，按 name 配对', schema:'generationConfig.response_schema + response_mime_type', stream:':streamGenerateContent?alt=sse', native:'Gemini 及 generateContent 兼容端点' }
   ];
 
   const docs = [
@@ -210,14 +210,7 @@ window.TokenScopeData = (() => {
     { id:'consistency', title:'响应一致性测试', group:'用例' },
     { id:'cases', title:'测试用例库', group:'用例' },
     { id:'examples', title:'示例详情', group:'用例' },
-    { id:'vod-overview', title:'VOD 开通与区域', group:'用户手册' },
-    { id:'vod-auth', title:'鉴权', group:'用户手册' },
-    { id:'vod-billing', title:'计费', group:'用户手册' },
-    { id:'vod-task', title:'查询任务详情', group:'用户手册' },
-    { id:'vod-media', title:'媒资上传', group:'用户手册' },
-    { id:'vod-api', title:'API 调用', group:'用户手册' },
-    { id:'vod-mm', title:'多模态模型', group:'用户手册' },
-    { id:'vod-sr', title:'视频超分 / 字幕擦除', group:'用户手册' },
+    { id:'auth', title:'鉴权与协议头', group:'手册' },
     { id:'kb', title:'客户知识库', group:'知识库' },
     { id:'perf-sla', title:'性能验收 SLA', group:'供应商验收' },
     { id:'eval-bench', title:'效果评测数据集', group:'供应商验收' },
@@ -225,7 +218,7 @@ window.TokenScopeData = (() => {
   ];
 
   const kbSeed = [
-    { id:'kb-1', title:'tool_choice=none 仍触发工具', source:'客户工单 #4412', tags:['参数透传','tools'], body:'客户在千帆兼容层设置 tool_choice=none，模型仍返回 tool_calls。期望网关原样透传。', analysis:'高概率是网关默认改写为 auto，或模型忽略 none。对应 TP-001。' },
+    { id:'kb-1', title:'tool_choice=none 仍触发工具', source:'客户工单 #4412', tags:['参数透传','tools'], body:'客户在兼容层设置 tool_choice=none，模型仍返回 tool_calls。期望网关原样透传。', analysis:'高概率是网关默认改写为 auto，或模型忽略 none。对应 TP-001。' },
     { id:'kb-2', title:'相同 prompt 的 token 抖动', source:'客户工单 #4388', tags:['Token Probe'], body:'同一段中文 system+user，prompt_tokens 在 86/87/89 间跳。影响计费对账。', analysis:'可能是 BPE 边界、隐式 system 注入或网关包装消息。对应 TK-004。' },
     { id:'kb-3', title:'Gemini contents 被转成 messages', source:'客户工单 #4501', tags:['协议','Gemini'], body:'原生 generateContent 请求被 400。抓包发现 contents 被改成 messages。', analysis:'协议转换层把 Gemini Native 误当成 Chat Completions。对应 PX-002。' }
   ];
